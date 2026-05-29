@@ -915,7 +915,6 @@ export const syncProjectAutoProgress = catchAsync(async (req, res) => {
   }
 
   const result = await syncAutoProgressForProject(project, {
-    updatedBy: req.user._id,
     trigger: "admin-api",
   });
 

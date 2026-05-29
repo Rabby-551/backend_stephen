@@ -48,12 +48,17 @@ export const calculateAutoProgressPercent = ({
   return Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
 };
 
-const AUTO_PROGRESS_NAME = "Auto Timeline Progress";
-
+/**
+ * Updates project.progress with the date-based auto-timeline percentage.
+ *
+ * Rules:
+ * - ONLY updates the project.progress numeric field (used by the top progress bar).
+ * - Does NOT create any entry in project.progressUpdates (the manual feed).
+ * - Does NOT change projectStatus — status is managed via the dedicated status endpoint.
+ */
 export const syncAutoProgressForProject = async (
   project,
   {
-    updatedBy,
     trigger = "cron",
     now = new Date(),
   } = {},
@@ -64,6 +69,8 @@ export const syncAutoProgressForProject = async (
     endDate: project.endDate,
     now,
   });
+
+  // Never roll back — only advance the stored percentage forward.
   const nextPercent = Math.max(currentPercent, calculatedPercent);
 
   if (currentPercent === nextPercent) {
@@ -75,28 +82,8 @@ export const syncAutoProgressForProject = async (
     };
   }
 
-  const actorId = updatedBy || project.createdBy || project.siteManager || project.client;
-  if (!actorId) {
-    return {
-      updated: false,
-      previousPercent: currentPercent,
-      nextPercent,
-      project,
-    };
-  }
-
-  project.progressUpdates.push({
-    progressName: AUTO_PROGRESS_NAME,
-    percent: nextPercent,
-    note: `Auto day-wise update (${trigger})`,
-    updatedBy: actorId,
-    updatedAt: now,
-  });
-
-  if (nextPercent >= 100) {
-    project.projectStatus = "finished";
-  }
-
+  // Only persist project.progress — do not touch progressUpdates or projectStatus.
+  project.progress = nextPercent;
   await project.save();
 
   return {

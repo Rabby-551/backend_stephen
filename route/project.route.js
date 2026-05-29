@@ -2,6 +2,7 @@ import express from "express";
 import {
   addProjectPhase,
   addProjectProgressUpdate,
+  deleteProjectProgressUpdate,
   getProjectDetails,
   getProjectFinancialSummary,
   getProjects,
@@ -20,6 +21,7 @@ router.get("/:projectId", getProjectDetails);
 router.patch("/:projectId/status", updateProjectStatus);
 router.post("/:projectId/progress", addProjectProgressUpdate);
 router.patch("/:projectId/progress/:progressUpdateId", updateProjectProgressUpdate);
+router.delete("/:projectId/progress/:progressUpdateId", deleteProjectProgressUpdate);
 router.post("/:projectId/phases", addProjectPhase);
 router.patch("/:projectId/phase-payment", updatePhasePaymentStatus);
 router.get("/:projectId/financial-summary", getProjectFinancialSummary);
