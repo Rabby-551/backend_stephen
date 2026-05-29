@@ -111,9 +111,8 @@ export const addProjectProgressUpdate = catchAsync(async (req, res) => {
   });
   sortProjectProgressUpdatesForPersistence(project);
 
-  if (Number(percent) >= 100) {
-    project.projectStatus = "finished";
-  }
+  // Manual progress entries are informational only — they must never change
+  // project status. Status is managed separately via updateProjectStatus.
 
   await project.save();
   await project.populate("progressUpdates.updatedBy", "name email avatar role");
@@ -171,10 +170,8 @@ export const updateProjectProgressUpdate = catchAsync(async (req, res) => {
 
   sortProjectProgressUpdatesForPersistence(project);
 
-  const latestProgressUpdate =
-    project.progressUpdates[project.progressUpdates.length - 1] ?? null;
-  const latestPercent = Number(latestProgressUpdate?.percent ?? 0);
-  project.projectStatus = latestPercent >= 100 ? "finished" : "active";
+  // Manual progress entries are informational only — they must never change
+  // project status. Status is managed separately via updateProjectStatus.
 
   await project.save();
   await project.populate("progressUpdates.updatedBy", "name email avatar role");
@@ -183,6 +180,31 @@ export const updateProjectProgressUpdate = catchAsync(async (req, res) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Progress updated successfully",
+    data: sortProgressUpdatesNewestFirst(project),
+  });
+});
+
+export const deleteProjectProgressUpdate = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin/manager can delete progress entries");
+  }
+
+  const { projectId, progressUpdateId } = req.params;
+  const project = await getProjectForUser(projectId, req.user);
+  const progressUpdate = project.progressUpdates.id(progressUpdateId);
+
+  if (!progressUpdate) {
+    throw new AppError(httpStatus.NOT_FOUND, "Progress update not found");
+  }
+
+  progressUpdate.deleteOne();
+  await project.save();
+  await project.populate("progressUpdates.updatedBy", "name email avatar role");
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Progress entry deleted",
     data: sortProgressUpdatesNewestFirst(project),
   });
 });
